@@ -11,7 +11,10 @@ with tempfile.TemporaryDirectory() as tmp:
   for _ in range(70):
    try:urllib.request.urlopen(url+'/health',timeout=1);break
    except Exception:time.sleep(.1)
-  login=urllib.request.Request(url+'/api/login',method='POST',headers={'Content-Type':'application/json','X-Requested-With':'VLUX-Desktop'},data=json.dumps({'email':'ludwing@vlux.local','password':'DemoVlux2026!'}).encode())
+  hdr={'Content-Type':'application/json','X-Requested-With':'VLUX-Desktop','Origin':url}
+  first=urllib.request.Request(url+'/api/first-password',method='POST',headers=hdr,data=json.dumps({'email':'ludwing@vlux.local','current_password':'DemoVlux2026!','new_password':'Prueba-Publica-2026!'}).encode())
+  urllib.request.urlopen(first,timeout=4).read()
+  login=urllib.request.Request(url+'/api/login',method='POST',headers=hdr,data=json.dumps({'email':'ludwing@vlux.local','password':'Prueba-Publica-2026!'}).encode())
   with urllib.request.urlopen(login,timeout=4) as r:cookie=r.headers['Set-Cookie'].split(';')[0]
   req=urllib.request.Request(url+'/api/collab/people',headers={'Cookie':cookie,'X-Requested-With':'VLUX-Desktop'})
   with urllib.request.urlopen(req,timeout=4) as r:res=json.loads(r.read())

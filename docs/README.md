@@ -12,7 +12,7 @@
 2. Instala **Python 3.11+** en caso de no tenerlo (activa `Add Python to PATH`). No usa paquetes extra para la demo.
 3. Da doble clic a **`RUN_DESKTOP.bat`** (sin precarga financiera). Abrirá una ventana propia de Edge sin barras del navegador, y una consola del servidor local (debe permanecer abierta).
 4. Si falla la apertura automática, ejecuta `START_LOCAL_API.bat` y visita `http://127.0.0.1:8765`.
-5. Usuarios iniciales ficticios: `ludwing@vlux.local` y `rodrigo@vlux.local`; contraseña **`DemoVlux2026!`**. Perfil de solo lectura: `consulta@vlux.local` con misma contraseña. **Nunca uses estas credenciales en producción.**
+5. Usuarios iniciales ficticios: `ludwing@vlux.local` y `rodrigo@vlux.local`; contraseña **`DemoVlux2026!`**. Perfil de solo lectura: `consulta@vlux.local` con misma contraseña. Esa contraseña pública solo abre sesión en modo demo; en modo local se exige sustituirla en el primer acceso y producción la rechaza. **Nunca uses estas credenciales en producción.**
 
 ### Nota sobre compartirlo con compañeros
 

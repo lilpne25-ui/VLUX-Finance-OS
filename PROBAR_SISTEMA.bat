@@ -16,11 +16,11 @@ if not errorlevel 1 (
 echo [ERROR] Python 3.11+ no encontrado.
 goto ERROR_EXIT
 :RUN_PYTHON
-python "tests\smoke_test.py" && python "tests\clean_mode_test.py" && python "tests\collab_public_test.py"
+python "tests\smoke_test.py" && python "tests\clean_mode_test.py" && python "tests\collab_public_test.py" && python "tests\security_a0_test.py"
 set "CODE=%ERRORLEVEL%"
 goto DONE
 :RUN_PY
-py -3 "tests\smoke_test.py" && py -3 "tests\clean_mode_test.py" && py -3 "tests\collab_public_test.py"
+py -3 "tests\smoke_test.py" && py -3 "tests\clean_mode_test.py" && py -3 "tests\collab_public_test.py" && py -3 "tests\security_a0_test.py"
 set "CODE=%ERRORLEVEL%"
 goto DONE
 :PATH_ERROR

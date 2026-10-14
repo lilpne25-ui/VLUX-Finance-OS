@@ -4,7 +4,7 @@ python backend/provision_second_partner.py
 """
 import getpass,os,sys
 from db import DB
-from app import encode_pwd,now,audit
+from app import encode_pwd,now,audit,is_placeholder_password
 
 def main():
     if os.environ.get('VLUX_DB','').lower()!='sqlserver':sys.exit('Esta herramienta sólo se usa en servidor SQL Server')
@@ -22,6 +22,7 @@ def main():
         pw=getpass.getpass('Contraseña inicial 14+ caracteres: ')
         again=getpass.getpass('Repetir contraseña: ')
         if pw!=again or len(pw)<14:sys.exit('Contraseñas distintas o demasiado cortas')
+        if is_placeholder_password(pw):sys.exit('No se permite una contraseña pública o de ejemplo')
         id_=db.insert('users',['name','email','password_hash','role','active','created_at'],[name,email,encode_pwd(pw),'socio',1,now()])
         audit(db,None,'PROVISION_SECOND_PARTNER','users',id_,'Segundo socio habilitado desde consola supervisada')
         db.commit();print('Segundo socio agregado correctamente con ID',id_)

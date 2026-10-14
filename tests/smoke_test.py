@@ -6,7 +6,7 @@ with socket.socket() as a:a.bind(('127.0.0.1',0));PORT=a.getsockname()[1]
 BASE_URL=f'http://127.0.0.1:{PORT}'
 
 def req(path,verb='GET',data=None,cookie='',ok=True):
-    h={'X-Requested-With':'VLUX-Desktop'}
+    h={'X-Requested-With':'VLUX-Desktop','Origin':BASE_URL}
     if cookie:h['Cookie']=cookie
     b=json.dumps(data).encode() if data is not None else None
     if b:h['Content-Type']='application/json'

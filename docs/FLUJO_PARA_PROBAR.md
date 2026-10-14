@@ -5,7 +5,7 @@
 Primero ejecutar `PROBAR_SISTEMA.bat`; ejecuta pruebas que crean bases temporales aisladas y no tocan tus datos de prueba.
 
 1. `RUN_DESKTOP.bat` inicia la base local SIN proyectos, ingresos ni gastos precargados. **Precarga tres perfiles demostrativos sin modalidades ni contratos.**
-2. Inicio: `ludwing@vlux.local` / `DemoVlux2026!`. Cambia credenciales y no introduzcas datos sensibles.
+2. Inicio: `ludwing@vlux.local` con la contraseña temporal de `LEEME_PRIMERO.txt`. En modo local el sistema exige sustituirla antes de abrir sesión (mínimo 12 caracteres, distinta de la temporal). No introduzcas datos sensibles.
 3. `Proyectos` → crear proyecto de ejemplo, p. ej. `POS TEST / CLIENTE FICTICIO`.
 4. `Ventas y cobros` → registrar una venta neta ficticia por MXN 20,000; registrar un cobro parcial de MXN 10,000. Evitar duplicar ingreso si ya estaba en Movimientos.
 5. `Costos periódicos` → costo de hosting MXN 2,000 pagado: el otro socio debe aprobar en Movimientos antes de que se aplique a la base.

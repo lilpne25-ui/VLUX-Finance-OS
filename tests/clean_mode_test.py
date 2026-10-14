@@ -7,9 +7,11 @@ def get_port():
     with socket.socket() as s:
         s.bind(('127.0.0.1',0));return s.getsockname()[1]
 
+NEW_PASSWORD='Prueba-Local-2026!'
+
 def do(url,method='GET',obj=None,cookie=''):
     data=json.dumps(obj).encode() if obj is not None else None
-    headers={'X-Requested-With':'VLUX-Desktop'}
+    headers={'X-Requested-With':'VLUX-Desktop','Origin':url.split('/api/')[0].split('/app.js')[0].split('/health')[0]}
     if obj is not None:headers['Content-Type']='application/json'
     if cookie:headers['Cookie']=cookie
     req=urllib.request.Request(url,method=method,data=data,headers=headers)
@@ -27,7 +29,17 @@ def exercise(mode,dbpath):
             try: do(url+'/health');break
             except Exception:time.sleep(.1)
         else:raise AssertionError('No HTTP startup')
-        _,h=do(url+'/api/login','POST',{'email':'ludwing@vlux.local','password':'DemoVlux2026!'})
+        if mode=='local':
+            # Local mode refuses the public test password; on a relaunch it was already replaced.
+            try:
+                do(url+'/api/login','POST',{'email':'ludwing@vlux.local','password':'DemoVlux2026!'})
+                raise AssertionError('demo password accepted in local mode')
+            except urllib.error.HTTPError as e:
+                assert e.code==403,e.code
+            try:do(url+'/api/first-password','POST',{'email':'ludwing@vlux.local','current_password':'DemoVlux2026!','new_password':NEW_PASSWORD})
+            except urllib.error.HTTPError as e:assert e.code==403,e.code
+        password=NEW_PASSWORD if mode=='local' else 'DemoVlux2026!'
+        _,h=do(url+'/api/login','POST',{'email':'ludwing@vlux.local','password':password})
         cookie=h.split(';')[0]
         stats,_=do(url+'/api/dashboard',cookie=cookie)
         projects,_=do(url+'/api/projects',cookie=cookie)

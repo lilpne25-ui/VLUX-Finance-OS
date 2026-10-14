@@ -14,7 +14,7 @@ const menu=[['dashboard','◫','Resumen general'],['transactions','⇄','Movimie
 async function api(path,options={}){
   const r=await fetch(path,{credentials:'same-origin',headers:{'Content-Type':'application/json','X-Requested-With':'VLUX-Desktop'},...options});
   let j;try{j=await r.json()}catch{throw Error('Respuesta del servidor no válida')}
-  if(!r.ok)throw Error(j.error||`Error ${r.status}`);
+  if(!r.ok){const err=Error(j.error||`Error ${r.status}`);err.code=j.code;throw err};
   return j;
 }
 function get(path){return api(path)}
@@ -218,7 +218,7 @@ async function restoreSession(){
 }
 function showLogin(){$('shell').classList.add('hidden');$('login').classList.remove('hidden');}
 function showShell(){$('login').classList.add('hidden');$('shell').classList.remove('hidden');$('environment').textContent=env==='local'?'LOCAL · SIN PRECARGA':env.toUpperCase();$('environment').className='env'+(env==='production'?' prod':'');$('dbMode').textContent=(dbMode==='sqlite'?(env==='local'?'Base local · sin precarga':'Demo · SQLite'):'Central · SQL Server');$('avatar').textContent=(user.name||'V').split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();$('today').textContent=new Date().toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});navigate('dashboard')}
-$('loginForm').addEventListener('submit',async ev=>{ev.preventDefault();$('loginError').textContent='';try{await post('/api/login',{email:$('email').value,password:$('password').value});$('password').value='';await restoreSession()}catch(e){$('loginError').textContent=e.message}});
+$('loginForm').addEventListener('submit',async ev=>{ev.preventDefault();$('loginError').textContent='';try{await post('/api/login',{email:$('email').value,password:$('password').value});$('password').value='';await restoreSession()}catch(e){$('loginError').textContent=e.message;if(e.code==='must_change_password'){$('firstPasswordForm').classList.remove('hidden');$('newPassword').focus()}}});$('firstPasswordForm').addEventListener('submit',async ev=>{ev.preventDefault();$('loginError').textContent='';if($('newPassword').value!==$('newPasswordAgain').value){$('loginError').textContent='Las contraseñas nuevas no coinciden';return}try{await post('/api/first-password',{email:$('email').value,current_password:$('password').value,new_password:$('newPassword').value});$('password').value='';$('newPassword').value='';$('newPasswordAgain').value='';$('firstPasswordForm').classList.add('hidden');$('loginError').textContent='Contraseña actualizada. Inicia sesión con la nueva contraseña.'}catch(e){$('loginError').textContent=e.message}});
 $('nav').addEventListener('click',ev=>{const e=ev.target.closest('[data-nav]');if(e)navigate(e.dataset.nav)});
 $('content').addEventListener('click',ev=>{let e=ev.target.closest('[data-action]');if(e)action(e.dataset.action)});
 $('content').addEventListener('click',ev=>{let e=ev.target.closest('[data-filter]');if(e){filterType=e.dataset.filter;renderTransactions()}});

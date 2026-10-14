@@ -19,7 +19,9 @@ USUARIOS TEMPORALES DE PRUEBA:
   ludwing@vlux.local     DemoVlux2026!
   rodrigo@vlux.local     DemoVlux2026!
   consulta@vlux.local    DemoVlux2026!
-CAMBIAR CONTRASENAS. NO USAR DATOS SENSIBLES REALES EN DEMO.
+La contrasena temporal SOLO abre sesion en RUN_CON_DATOS_DEMO.bat (datos ficticios).
+En RUN_DESKTOP.bat el sistema exige reemplazarla en el primer acceso.
+NO USAR DATOS SENSIBLES REALES EN DEMO.
 
 FLUJO: Proyecto -> Venta -> Cobro neto -> Costo directo -> Actividad del colaborador
     -> Contrato validado -> Revision de socios -> Corte -> Dos aprobaciones

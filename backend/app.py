@@ -18,6 +18,13 @@ PORT = int(os.getenv('VLUX_PORT','8765'))
 MAX_BODY = 150_000
 LOGIN_FAILS={}
 FAIL_LOCK=threading.Lock()
+# Public, well-known password of the seeded test accounts. Only demo mode (fictitious data) may use it.
+DEMO_PASSWORD='DemoVlux2026!'
+PLACEHOLDER_PASSWORDS={DEMO_PASSWORD,'CAMBIAR_CONTRASENA_UNICA_14_CARACTERES'}
+LOCK_WINDOW=900
+MAX_FAILS_ACCOUNT=5
+MAX_FAILS_IP=20
+TRUST_PROXY=os.getenv('VLUX_TRUST_PROXY','')=='1'
 
 def now():return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 def iso_today():return date.today().isoformat()
@@ -51,6 +58,36 @@ def valid_period(s):
     return s
 class UserError(Exception):pass
 class Forbidden(Exception):pass
+class PasswordChangeRequired(Forbidden):pass
+
+def is_placeholder_password(pw):
+    return any(hmac.compare_digest(pw.encode(),x.encode()) for x in PLACEHOLDER_PASSWORDS)
+
+def check_new_password(new,current=None):
+    if len(new)<12:raise UserError('La nueva contraseña debe tener al menos 12 caracteres')
+    if is_placeholder_password(new):raise UserError('No se permite una contraseña pública o de ejemplo')
+    if current is not None and hmac.compare_digest(new.encode(),current.encode()):raise UserError('La nueva contraseña debe ser distinta de la actual')
+    return new
+
+def allowed_hosts():
+    if MODE_APP=='production':
+        hosts={urlparse(os.environ.get('VLUX_PUBLIC_ORIGIN','')).netloc.lower()}
+        hosts|={h.strip().lower() for h in os.environ.get('VLUX_ALLOWED_HOSTS','').split(',') if h.strip()}
+        return {h for h in hosts if h}
+    return {f'127.0.0.1:{PORT}',f'localhost:{PORT}',f'[::1]:{PORT}'}
+
+def login_blocked(keys):
+    cutoff=time.time()-LOCK_WINDOW
+    with FAIL_LOCK:
+        for key,limit in keys:
+            attempts=[x for x in LOGIN_FAILS.get(key,[]) if x>cutoff]
+            LOGIN_FAILS[key]=attempts
+            if len(attempts)>=limit:return True
+    return False
+
+def login_failed(keys):
+    with FAIL_LOCK:
+        for key,_ in keys:LOGIN_FAILS.setdefault(key,[]).append(time.time())
 
 def audit(db,uid,action,entity,eid,detail=''):
     db.insert('audit',['created_at','actor_id','action','entity','entity_id','detail'],[now(),uid,action,entity,eid,str(detail)[:1100]])
@@ -114,7 +151,7 @@ def local_clean_seed(db):
     """
     if db.one('SELECT COUNT(*) AS n FROM {users}')['n']:
         return
-    pw=encode_pwd('DemoVlux2026!')
+    pw=encode_pwd(DEMO_PASSWORD)
     for name,email,role in [
         ('Ludwing Valdés','ludwing@vlux.local','socio'),
         ('Rodrigo Lira','rodrigo@vlux.local','socio'),
@@ -128,7 +165,7 @@ def local_clean_seed(db):
 def demo_seed(db):
     users=db.one('SELECT COUNT(*) AS n FROM {users}')['n']
     if users:return
-    pw=encode_pwd('DemoVlux2026!')
+    pw=encode_pwd(DEMO_PASSWORD)
     for name,email in [('Ludwing Valdés','ludwing@vlux.local'),('Rodrigo Lira','rodrigo@vlux.local')]:
         db.insert('users',['name','email','password_hash','role','active','created_at'],[name,email,pw,'socio',1,now()])
     db.insert('users',['name','email','password_hash','role','active','created_at'],['Invitado de consulta','consulta@vlux.local',pw,'consulta',1,now()])
@@ -162,13 +199,20 @@ def bootstrap():
         if HOST not in ('127.0.0.1','localhost','::1'):raise RuntimeError('Backend productivo sólo debe escuchar en loopback tras un proxy HTTPS')
         if not os.environ.get('VLUX_PUBLIC_ORIGIN','').startswith('https://'):raise RuntimeError('VLUX_PUBLIC_ORIGIN debe iniciar con https://')
     initialize();db=DB()
-    collab.seed(db)
     try:
+        # Neutral example collaborator profiles only outside production.
+        if MODE_APP in ('demo','local'):collab.seed(db)
         if MODE_APP=='demo' and MODE=='sqlite':demo_seed(db)
         if MODE_APP=='local' and MODE=='sqlite':local_clean_seed(db)
+        if MODE_APP!='demo':
+            # Sessions opened before A0 with the public password must not survive the upgrade.
+            for u in db.rows('SELECT id,password_hash FROM {users}'):
+                if verify_pwd(DEMO_PASSWORD,u['password_hash']):db.execute('DELETE FROM {sessions} WHERE user_id=?',(u['id'],))
+            db.commit()
         if MODE_APP=='production' and not db.one('SELECT id FROM {users}'):
             email=os.getenv('VLUX_BOOTSTRAP_ADMIN_EMAIL','').strip().lower();pw=os.getenv('VLUX_BOOTSTRAP_ADMIN_PASSWORD','')
             if not email or len(pw)<14:raise RuntimeError('Primer arranque: configure VLUX_BOOTSTRAP_ADMIN_EMAIL y contraseña de mínimo 14 caracteres')
+            if is_placeholder_password(pw):raise RuntimeError('Primer arranque: la contraseña de ejemplo no está permitida')
             db.insert('users',['name','email','password_hash','role','active','created_at'],[os.getenv('VLUX_BOOTSTRAP_ADMIN_NAME','Ludwing Valdés'),email,encode_pwd(pw),'socio',1,now()])
             audit(db,None,'BOOTSTRAP','users',1,'Administrador inicial creado')
             db.commit()
@@ -192,14 +236,23 @@ class Handler(BaseHTTPRequestHandler):
         if headers:
             for k,v in headers:self.send_header(k,v)
         self.end_headers();self.wfile.write(raw)
+    def host_ok(self):
+        return self.headers.get('Host','').strip().lower() in allowed_hosts()
+    def client_ip(self):
+        ip=self.client_address[0]
+        if TRUST_PROXY and ip in ('127.0.0.1','::1'):
+            forwarded=[x.strip() for x in self.headers.get('X-Forwarded-For','').split(',') if x.strip()]
+            if forwarded:ip=forwarded[-1]
+        return ip
     def body(self):
         length=int(self.headers.get('Content-Length','0'))
         if length<=0 or length>MAX_BODY:raise UserError('JSON requerido o tamaño excedido')
         if self.headers.get('Content-Type','').split(';')[0].strip()!='application/json':raise UserError('Content-Type debe ser application/json')
         if self.headers.get('X-Requested-With','')!='VLUX-Desktop':raise Forbidden('Solicitud sin encabezado de protección')
         origin=self.headers.get('Origin','')
+        # Host is allowlisted before this point, so deriving the local origin from it is safe.
         expected=os.environ.get('VLUX_PUBLIC_ORIGIN','') if MODE_APP=='production' else f'http://{self.headers.get("Host", "")}'
-        if origin and origin.rstrip('/')!=expected.rstrip('/'):
+        if not origin or origin.rstrip('/').lower()!=expected.rstrip('/').lower():
             raise Forbidden('Origen no autorizado')
         try:obj=json.loads(self.rfile.read(length))
         except Exception:raise UserError('JSON inválido')
@@ -223,6 +276,7 @@ class Handler(BaseHTTPRequestHandler):
         return ('Set-Cookie','vlux_session='+token+'; Path=/; HttpOnly; SameSite=Strict; Max-Age='+str(maxage)+('; Secure' if MODE_APP=='production' else ''))
     def do_GET(self):
         path=urlparse(self.path).path
+        if not self.host_ok():return self.send(421,{'error':'Host no autorizado'})
         if not path.startswith('/api/') and path!='/health':
             path='/index.html' if path=='/' else path
             files={'/index.html':('index.html','text/html'),'/app.css':('app.css','text/css'),'/app.js':('app.js','application/javascript'),'/collab.js':('collab.js','application/javascript'),'/print.js':('print.js','application/javascript'),'/favicon.svg':('favicon.svg','image/svg+xml')}
@@ -278,21 +332,30 @@ class Handler(BaseHTTPRequestHandler):
     def do_PUT(self):self.write_request('PUT')
     def write_request(self,method):
         path=urlparse(self.path).path
+        if not self.host_ok():return self.send(421,{'error':'Host no autorizado'})
         db=DB()
         try:
             obj=self.body()
-            if path=='/api/login':
-                ip=self.client_address[0]
-                with FAIL_LOCK:
-                    attempts=[x for x in LOGIN_FAILS.get(ip,[]) if x>time.time()-300]
-                    LOGIN_FAILS[ip]=attempts
-                    if len(attempts)>=6:raise Forbidden('Demasiados intentos. Intente dentro de 5 minutos.')
-                email=check_str(obj.get('email'),'correo',200).lower();pwd=check_str(obj.get('password'),'contraseña',500)
+            if path in ('/api/login','/api/first-password'):
+                email=check_str(obj.get('email'),'correo',200).lower()
+                pwd=check_str(obj.get('password' if path=='/api/login' else 'current_password'),'contraseña',500)
+                keys=[('acct:'+email,MAX_FAILS_ACCOUNT),('ip:'+self.client_ip(),MAX_FAILS_IP)]
+                if login_blocked(keys):raise Forbidden('Demasiados intentos. Intente dentro de 15 minutos.')
                 u=db.one('SELECT * FROM {users} WHERE email=? AND active=1',(email,))
                 if not u or not verify_pwd(pwd,u['password_hash']):
-                    with FAIL_LOCK:LOGIN_FAILS.setdefault(ip,[]).append(time.time())
+                    login_failed(keys)
                     raise Forbidden('Correo o contraseña incorrectos')
-                with FAIL_LOCK:LOGIN_FAILS.pop(ip,None)
+                with FAIL_LOCK:LOGIN_FAILS.pop('acct:'+email,None)
+                if path=='/api/first-password':
+                    new=check_new_password(check_str(obj.get('new_password'),'contraseña nueva',500),pwd)
+                    db.execute('UPDATE {users} SET password_hash=? WHERE id=?',(encode_pwd(new),u['id']))
+                    db.execute('DELETE FROM {sessions} WHERE user_id=?',(u['id'],))
+                    audit(db,u['id'],'PASSWORD_REPLACED_INITIAL','users',u['id'],'Contraseña pública sustituida antes de iniciar sesión')
+                    db.commit();return self.send(200,{'ok':True})
+                # Public test password: allowed only with fictitious demo data.
+                if MODE_APP!='demo' and is_placeholder_password(pwd):
+                    raise PasswordChangeRequired('Debe sustituir la contraseña temporal antes de entrar')
+                db.execute('DELETE FROM {sessions} WHERE expires_at<?',(now(),))
                 token=secrets.token_urlsafe(36)
                 expiry=(datetime.now(timezone.utc)+timedelta(hours=10)).replace(microsecond=0).isoformat()
                 db.insert('sessions',['user_id','token_hash','expires_at'],[u['id'],sha(token),expiry]);db.commit()
@@ -308,7 +371,7 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/change-password':
                 pw=check_str(obj.get('current_password'),'contraseña actual',500)
                 new=check_str(obj.get('new_password'),'contraseña nueva',500)
-                if len(new)<12:raise UserError('La nueva contraseña debe tener al menos 12 caracteres')
+                check_new_password(new,pw)
                 original=db.one('SELECT password_hash FROM {users} WHERE id=?',(uid,))
                 if not verify_pwd(pw,original['password_hash']):raise Forbidden('Contraseña actual incorrecta')
                 db.execute('UPDATE {users} SET password_hash=? WHERE id=?',(encode_pwd(new),uid))
@@ -445,12 +508,14 @@ class Handler(BaseHTTPRequestHandler):
                 name=check_str(obj.get('name'),'nombre',200);email=check_str(obj.get('email'),'email',200).lower();pwd=check_str(obj.get('password'),'contraseña',200)
                 role=obj.get('role','consulta')
                 if role!='consulta':raise UserError('Para incorporar socios se requiere formalización societaria; desde aquí sólo pueden crearse lectores')
-                if '@' not in email or len(pwd)<12:raise UserError('Correo válido y contraseña de 12+ caracteres obligatorios')
+                if '@' not in email:raise UserError('Correo válido obligatorio')
+                check_new_password(pwd)
                 if db.one('SELECT id FROM {users} WHERE email=?',(email,)):raise UserError('Ya existe ese correo')
                 rid=db.insert('users',['name','email','password_hash','role','active','created_at'],[name,email,encode_pwd(pwd),role,1,now()]);audit(db,uid,'CREATED','users',rid,name)
             else:return self.send(404,{'error':'Operación inexistente'})
             db.commit();self.send(200,{'ok':True,'id':rid if 'rid' in locals() else None})
         except collab.CError as e:db.rollback();self.send(400,{'error':str(e)})
+        except PasswordChangeRequired as e:db.rollback();self.send(403,{'error':str(e),'code':'must_change_password'})
         except Forbidden as e:db.rollback();self.send(403,{'error':str(e)})
         except UserError as e:db.rollback();self.send(400,{'error':str(e)})
         except Exception as e:
