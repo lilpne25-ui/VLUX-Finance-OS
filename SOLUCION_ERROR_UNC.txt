@@ -1,0 +1,14 @@
+VLUX Finance OS v0.1.1 - Arreglo de C:\Windows\backend\app.py
+
+Causa: los .bat viejos usan cd /d "%%~dp0" y Windows CMD no admite rutas de red \\servidor\carpeta como directorio actual.
+
+Solucion: extrae este nuevo ZIP reemplazando el anterior (o en una carpeta nueva).
+Ejecuta RUN_DESKTOP.bat. Ahora usa pushd para mapear temporalmente la ruta UNC.
+La demo guarda su SQLite dentro de %%LOCALAPPDATA%%\VLUX\FinanceOS, NO en el servidor.
+
+Cuentas de prueba: ludwing@vlux.local / rodrigo@vlux.local / consulta@vlux.local
+Contrasena demo: DemoVlux2026!
+
+Para validar: PROBAR_SISTEMA.bat. La ventana de servidor NO se debe cerrar mientras se use.
+Si Windows no puede mapear la carpeta, copia la carpeta extraida a C:\VLUX\Finanzas\ y vuelve a ejecutar.
+No conectes aun esta version demo a una red externa ni registres movimientos reales.

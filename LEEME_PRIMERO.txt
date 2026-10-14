@@ -1,0 +1,43 @@
+VLUX FINANCE OS — v0.3 COLABORADORES, CONTRATOS, GASTOS Y TICKETS
+
+NUEVO: Colaboradores / Ventas y cobros / Costos periodicos / Ganancias por trabajo.
+El sistema incluye perfiles DEMOSTRATIVOS sin contratos ni porcentajes precargados; configure las modalidades privadas en el sistema.
+Ningun convenio aparece como firmado/activo automaticamente.
+
+ANTES DE ACTUALIZAR:
+- Cierra las instancias anteriores de VLUX Finance OS.
+- Ejecuta RESPALDAR_BASE_LOCAL.bat si ya tienes datos en v0.2.
+- Extrae todo el ZIP en una nueva carpeta. Se pueden conservar bases locales existentes.
+
+INICIO WINDOWS:
+- RUN_DESKTOP.bat : datos financieros VACIOS, colaboradores y contratos de referencia precargados.
+- RUN_CON_DATOS_DEMO.bat : datos DEMO ficticios independientes de base vacia.
+- PROBAR_SISTEMA.bat : pruebas automatizadas de backend, roles, dinero, contratos y tickets.
+- Microsoft Edge (ventana de aplicacion) + Python 3.11+; funciona desde rutas UNC con pushd.
+
+USUARIOS TEMPORALES DE PRUEBA:
+  ludwing@vlux.local     DemoVlux2026!
+  rodrigo@vlux.local     DemoVlux2026!
+  consulta@vlux.local    DemoVlux2026!
+CAMBIAR CONTRASENAS. NO USAR DATOS SENSIBLES REALES EN DEMO.
+
+FLUJO: Proyecto -> Venta -> Cobro neto -> Costo directo -> Actividad del colaborador
+    -> Contrato validado -> Revision de socios -> Corte -> Dos aprobaciones
+    -> Transferencia externa y CFDI cuando aplique -> Registrar pago -> Ticket.
+
+NUEVO: Se puede VINCULAR un ingreso/gasto existente de Movimientos a una venta
+sin duplicarlo en el panel. Los gastos recurrentes tienen fecha siguiente mensual/anual.
+Los costos directos deben estar aprobados/pagados antes del corte; gastos pendientes bloquean.
+
+IMPORTANTE:
+- No hay envios automaticos de tickets ni dinero: usa Imprimir / Guardar como PDF y comparte.
+- Ninguna modalidad tiene autorización hasta que se configure y apruebe con documentación real.
+- Los contratos privados deben registrarse dentro del sistema y aprobarse antes de pagar.
+- Para colaborador de producto las fechas calculadas usan lunes-viernes; no incluyen dias festivos legales.
+- SQL Server NO esta conectado ni comprobado; las bases locales de cada PC NO se sincronizan.
+- Los perfiles de consulta ven finanzas generales: NO dar accesos a colaboradores externos.
+
+LIMITE ACTUAL: web de escritorio dentro de Microsoft Edge + backend Python.
+NO es un instalador nativo Electron ni un sistema listo para produccion.
+
+Lee docs/CONTRATOS_Y_REGLAS_COLABORADORES.md y docs/FLUJO_PARA_PROBAR.md.

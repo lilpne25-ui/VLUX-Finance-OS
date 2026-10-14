@@ -1,0 +1,25 @@
+# Never commit runtime or financial information
+.env
+.env.*
+!.env.production.example
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+storage/*
+!storage/.gitkeep
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.log
+logs/
+backups/
+*.bak
+*.bacpac
+*.zip
+*.pdf
+*.docx
+*.xlsx
